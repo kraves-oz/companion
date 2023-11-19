@@ -1,0 +1,149 @@
+h4 {
+	font-weight: bold;
+}
+
+.action-buttons {
+	text-align: center;
+
+	// make compact
+	width: 1px;
+
+	.btn {
+		text-transform: uppercase;
+	}
+}
+
+.right {
+	float: right;
+}
+
+h4,
+h5,
+legend {
+	.btn-group {
+		float: right;
+	}
+	.btn {
+		float: right;
+	}
+}
+
+.btn-group {
+	overflow: hidden;
+	&.margin-bottom {
+		margin-bottom: 1rem;
+	}
+}
+
+h5 {
+	font-weight: bold;
+}
+
+.table-tight {
+	width: 100%;
+}
+
+.table-tight td,
+th {
+	padding: 5px 10px;
+	border-bottom: 1px solid #ddd;
+}
+
+.table-responsive-sm {
+	border: 1px solid #ddd;
+	border-collapse: collapse;
+	box-shadow: 0px 2px 21px -10px rgba(0, 0, 0, 0.2);
+
+	th {
+		// border-radius: 10%;
+		border-bottom-width: 0px !important;
+		background-color: #f0f0f0;
+		padding-top: 6px;
+		padding-bottom: 6px;
+
+		&.fit {
+			width: 1px;
+		}
+	}
+
+	td {
+		vertical-align: middle;
+	}
+}
+
+code {
+	font-family: 'Fira Code', monospace;
+	font-size: 1.05em;
+}
+
+@supports (font-variation-settings: normal) {
+	code {
+		font-family: 'Fira Code VF', monospace;
+	}
+}
+
+.widget-clickable,
+.hand {
+	cursor: pointer;
+}
+
+.btn-danger {
+	background-color: $primary;
+}
+
+.c-app {
+	color: #222;
+}
+.form-control {
+	color: #333;
+}
+.form-control:focus {
+	color: #111;
+}
+.table {
+	color: #111;
+}
+
+.modal {
+	max-height: 94vh;
+	margin-top: 6vh;
+}
+
+.btn-secondary {
+	background-color: $secondary;
+	color: black;
+}
+
+.text-right {
+	text-align: right;
+}
+.remove075right {
+	margin-right: -0.75rem;
+}
+
+.currentlyNone {
+	color: #777;
+	text-align: center;
+	padding: 30px !important;
+}
+
+.flex {
+	display: flex;
+}
+
+.w-full {
+	width: 100%;
+}
+.gap-1 {
+	gap: 1rem;
+}
+.gap-2 {
+	gap: 2rem;
+}
+.flex-wrap {
+	flex-wrap: wrap;
+}
+
+.c-switch-input {
+	display: none;
+}

@@ -1,69 +1,386 @@
-name: Node CI
+name: Build binaries
 on: [push]
+
 jobs:
   linux64:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [8.12]
+    runs-on: ubuntu-20.04
+    outputs:
+      version: ${{ steps.filenames.outputs.longversion }}
+      do-docker: ${{ steps.upload.outputs.branch }}
     steps:
-    - uses: actions/checkout@v1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: yarn update and lindist
-      run: |
-        yarn update
-        yarn run lindist
-    - name: rename and upload stuff
-      run: node ./tools/build_rename_git.js
-      env:
-        TRAVIS_OS_NAME: linux
-        BITFOCUS_S3: ${{ secrets.BITFOCUS_S3 }}
-        BITFOCUS_KEY: ${{ secrets.BITFOCUS_ACCESS }}
-        BITFOCUS_SECRET: ${{ secrets.BITFOCUS_SECRET }}
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+
+      - name: Cache build sources
+        uses: actions/cache@v3
+        with:
+          path: .cache
+          key: linux-x64-build-cache
+
+      - name: build & package
+        run: |
+          # try and avoid timeout errors
+          yarn config set network-timeout 100000 -g
+
+          yarn update
+
+          yarn zx tools/build/complete.mjs
+
+          # manually tar it, to preserve the symlinks
+          cd electron-output
+          mv linux-unpacked companion-x64
+          tar -cvzf companion-x64.tar.gz companion-x64
+        env:
+          CI: 1
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          USE_HARD_LINKS: false
+
+      - name: Determine files to upload
+        id: filenames
+        shell: bash
+        run: |
+          VERSION=$(cat ./dist/BUILD)
+
+          echo "sourcename=electron-output/companion-x64.tar.gz" >> $GITHUB_OUTPUT
+          echo "targetname=companion-linux-x64-${VERSION}.tar.gz" >> $GITHUB_OUTPUT
+          echo "longversion=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Upload build
+        id: upload
+        uses: bitfocus/actions/upload-and-notify@main
+        with:
+          long-version: ${{ steps.filenames.outputs.longversion }}
+          beta-branch: beta
+          dev-branch: develop
+
+          source-filename: ${{ steps.filenames.outputs.sourcename }}
+          destination-filename: ${{ steps.filenames.outputs.targetname }}
+          s3-host: ${{ secrets.S3_HOST }}
+          s3-bucket: ${{ secrets.S3_BUCKET }}/companion
+          s3-access-key: ${{ secrets.S3_KEY }}
+          s3-secret-key: ${{ secrets.S3_SECRET }}
+
+          api-product: companion
+          api-target: 'linux-tgz'
+          api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
+
+  linux-arm64:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+
+      - name: Cache build sources
+        uses: actions/cache@v3
+        with:
+          path: .cache
+          key: linux-arm64-build-cache
+
+      - name: build & package
+        run: |
+          # try and avoid timeout errors
+          yarn config set network-timeout 100000 -g
+
+          yarn update
+
+          yarn zx tools/build/complete.mjs linux-arm64
+
+          # manually tar it, to preserve the symlinks
+          cd electron-output
+          mv linux-arm64-unpacked companion-arm64
+          tar -cvzf companion-arm64.tar.gz companion-arm64
+        env:
+          CI: 1
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SKIP_LAUNCH_CHECK: true
+          USE_HARD_LINKS: false
+
+      - name: Determine files to upload
+        id: filenames
+        shell: bash
+        run: |
+          VERSION=$(cat ./dist/BUILD)
+
+          echo "sourcename=electron-output/companion-arm64.tar.gz" >> $GITHUB_OUTPUT
+          echo "targetname=companion-linux-arm64-${VERSION}.tar.gz" >> $GITHUB_OUTPUT
+          echo "longversion=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Upload build
+        uses: bitfocus/actions/upload-and-notify@main
+        with:
+          long-version: ${{ steps.filenames.outputs.longversion }}
+          beta-branch: beta
+          dev-branch: develop
+
+          source-filename: ${{ steps.filenames.outputs.sourcename }}
+          destination-filename: ${{ steps.filenames.outputs.targetname }}
+          s3-host: ${{ secrets.S3_HOST }}
+          s3-bucket: ${{ secrets.S3_BUCKET }}/companion
+          s3-access-key: ${{ secrets.S3_KEY }}
+          s3-secret-key: ${{ secrets.S3_SECRET }}
+
+          api-product: companion
+          api-target: 'linux-arm64-tgz'
+          api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
+
   osx:
-    runs-on: macOS-latest
-    strategy:
-      matrix:
-        node-version: [8.12]
+    runs-on: macos-11
     steps:
-    - uses: actions/checkout@v1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: npm install, build, and test
-      run: |
-        yarn update
-        yarn run macdist
-    - name: rename and upload stuff
-      run: node ./tools/build_rename_git.js
-      env:
-        TRAVIS_OS_NAME: osx
-        BITFOCUS_S3: ${{ secrets.BITFOCUS_S3 }}
-        BITFOCUS_KEY: ${{ secrets.BITFOCUS_ACCESS }}
-        BITFOCUS_SECRET: ${{ secrets.BITFOCUS_SECRET }}
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+
+      - name: Cache build sources
+        uses: actions/cache@v3
+        with:
+          path: .cache
+          key: macos-x64-build-cache
+
+      - name: build & package
+        run: |
+          # try and avoid timeout errors
+          yarn config set network-timeout 100000 -g
+
+          yarn update
+
+          yarn zx tools/build/complete.mjs
+        env:
+          CI: 1
+          CSC_LINK: ${{ secrets.OSX_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.OSX_CSC_KEY_PASSWORD }}
+          APPLEID: ${{ secrets.APPLEID }}
+          APPLETEAMID: ${{ secrets.APPLETEAMID }}
+          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          USE_HARD_LINKS: false
+
+      - name: Determine files to upload
+        id: filenames
+        shell: bash
+        run: |
+          VERSION=$(cat ./dist/BUILD)
+
+          echo "sourcename=electron-output/companion-mac-x64.dmg" >> $GITHUB_OUTPUT
+          echo "targetname=companion-mac-x64-${VERSION}.dmg" >> $GITHUB_OUTPUT
+          echo "longversion=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Upload build
+        uses: bitfocus/actions/upload-and-notify@main
+        with:
+          long-version: ${{ steps.filenames.outputs.longversion }}
+          beta-branch: beta
+          dev-branch: develop
+
+          source-filename: ${{ steps.filenames.outputs.sourcename }}
+          destination-filename: ${{ steps.filenames.outputs.targetname }}
+          s3-host: ${{ secrets.S3_HOST }}
+          s3-bucket: ${{ secrets.S3_BUCKET }}/companion
+          s3-access-key: ${{ secrets.S3_KEY }}
+          s3-secret-key: ${{ secrets.S3_SECRET }}
+
+          api-product: companion
+          api-target: 'mac-intel'
+          api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
+
+  osx-arm64:
+    runs-on: macos-11
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+
+      - name: Cache build sources
+        uses: actions/cache@v3
+        with:
+          path: .cache
+          key: macos-arm64-build-cache
+
+      - name: yarn update
+        run: |
+          # try and avoid timeout errors
+          yarn config set network-timeout 100000 -g
+
+          yarn update
+        env:
+          CI: 1
+      - name: build & package
+        run: |
+          yarn zx tools/build/complete.mjs darwin-arm64
+        env:
+          CI: 1
+          CSC_LINK: ${{ secrets.OSX_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.OSX_CSC_KEY_PASSWORD }}
+          APPLEID: ${{ secrets.APPLEID }}
+          APPLETEAMID: ${{ secrets.APPLETEAMID }}
+          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          USE_HARD_LINKS: false
+          SKIP_LAUNCH_CHECK: true
+
+      - name: Determine files to upload
+        id: filenames
+        shell: bash
+        run: |
+          VERSION=$(cat ./dist/BUILD)
+
+          echo "sourcename=electron-output/companion-mac-arm64.dmg" >> $GITHUB_OUTPUT
+          echo "targetname=companion-mac-arm64-${VERSION}.dmg" >> $GITHUB_OUTPUT
+          echo "longversion=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Upload build
+        uses: bitfocus/actions/upload-and-notify@main
+        with:
+          long-version: ${{ steps.filenames.outputs.longversion }}
+          beta-branch: beta
+          dev-branch: develop
+
+          source-filename: ${{ steps.filenames.outputs.sourcename }}
+          destination-filename: ${{ steps.filenames.outputs.targetname }}
+          s3-host: ${{ secrets.S3_HOST }}
+          s3-bucket: ${{ secrets.S3_BUCKET }}/companion
+          s3-access-key: ${{ secrets.S3_KEY }}
+          s3-secret-key: ${{ secrets.S3_SECRET }}
+
+          api-product: companion
+          api-target: 'mac-arm'
+          api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
+
   win64:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        node-version: [8.12]
+    runs-on: windows-2019
     steps:
-    - uses: actions/checkout@v1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: npm install, build, and test
-      run: |
-        yarn update
-        yarn run windist
-    - name: rename and upload stuff
-      run: node ./tools/build_rename_git.js
-      env:
-        TRAVIS_OS_NAME: win64
-        BITFOCUS_S3: ${{ secrets.BITFOCUS_S3 }}
-        BITFOCUS_KEY: ${{ secrets.BITFOCUS_ACCESS }}
-        BITFOCUS_SECRET: ${{ secrets.BITFOCUS_SECRET }}
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.node-version'
+
+      - name: Cache build sources
+        uses: actions/cache@v3
+        with:
+          path: .cache
+          key: windows-x64-build-cache
+
+      - name: build & package
+        shell: bash
+        run: |
+          # try and avoid timeout errors
+          yarn config set network-timeout 100000 -g
+
+          # This fixes it somehow, and without it we get no logs from any shell scripts which are run
+          yarn config set script-shell bash
+
+          yarn update
+
+          # zx needs this to be unset..
+          yarn config set script-shell ''
+
+          yarn zx tools/build/complete.mjs
+        env:
+          CI: 1
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Determine files to upload
+        id: filenames
+        shell: bash
+        run: |
+          VERSION=$(cat ./dist/BUILD)
+
+          echo "sourcename=electron-output/companion-win64.exe" >> $GITHUB_OUTPUT
+          echo "targetname=companion-win64-${VERSION}.exe" >> $GITHUB_OUTPUT
+          echo "longversion=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Upload build
+        uses: bitfocus/actions/upload-and-notify@main
+        with:
+          long-version: ${{ steps.filenames.outputs.longversion }}
+          beta-branch: beta
+          dev-branch: develop
+
+          source-filename: ${{ steps.filenames.outputs.sourcename }}
+          destination-filename: ${{ steps.filenames.outputs.targetname }}
+          s3-host: ${{ secrets.S3_HOST }}
+          s3-bucket: ${{ secrets.S3_BUCKET }}/companion
+          s3-access-key: ${{ secrets.S3_KEY }}
+          s3-secret-key: ${{ secrets.S3_SECRET }}
+
+          api-product: companion
+          api-target: 'win-x64'
+          api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
+
+  docker-image:
+    runs-on: ubuntu-latest
+
+    needs:
+      - linux64
+      - linux-arm64
+
+    env:
+      IMAGE_NAME: companion
+
+    steps:
+      - name: Docker meta
+        if: ${{ needs.linux64.outputs.do-docker }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ needs.linux64.outputs.version }}
+            type=ref,event=tag
+            type=ref,event=branch
+
+      - name: Set up QEMU
+        if: ${{ steps.meta.outputs.tags }}
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.meta.outputs.tags }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to registry
+        if: ${{ steps.meta.outputs.tags }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v3
+        if: ${{ steps.meta.outputs.tags }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        if: ${{ steps.meta.outputs.tags }}
+        with:
+          context: .
+          file: Dockerfile.prebuild
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: '${{ steps.meta.outputs.tags }}'
+          build-args: |
+            build_name=${{ needs.linux64.outputs.version }}

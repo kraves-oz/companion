@@ -1,0 +1,11 @@
+$primary: #d50215;
+$secondary: #ccc;
+$body-bg: #333;
+
+$header-dark-bg: #d50215;
+$header-dark-border: (
+	bottom: none,
+);
+$header-dark-color: #fff;
+$sidebar-dark-bg: #111;
+$sidebar-dark-brand-bg: adjust-color($header-dark-bg, $lightness: -10);
