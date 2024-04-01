@@ -2,31 +2,68 @@ name: Build binaries
 on: [push]
 
 jobs:
+  check-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: Prepare
+        run: |
+          corepack enable
+
+          # try and avoid timeout errors
+          yarn config set httpTimeout 100000
+
+          yarn --immutable
+
+          yarn build:ts
+
+      - name: Check types (server)
+        run: |
+          cd companion
+          yarn check-types
+
+      - name: Check types (client)
+        run: |
+          cd webui
+          yarn check-types
+
   linux64:
     runs-on: ubuntu-20.04
+    needs: check-types
+
     outputs:
       version: ${{ steps.filenames.outputs.longversion }}
       do-docker: ${{ steps.upload.outputs.branch }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
 
       - name: Cache build sources
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache
           key: linux-x64-build-cache
 
       - name: build & package
         run: |
-          # try and avoid timeout errors
-          yarn config set network-timeout 100000 -g
+          corepack enable
 
+          # try and avoid timeout errors
+          yarn config set httpTimeout 100000
+
+          yarn --immutable
           yarn update
 
           yarn zx tools/build/complete.mjs
@@ -56,7 +93,7 @@ jobs:
         uses: bitfocus/actions/upload-and-notify@main
         with:
           long-version: ${{ steps.filenames.outputs.longversion }}
-          beta-branch: beta
+          beta-branch: main
           dev-branch: develop
 
           source-filename: ${{ steps.filenames.outputs.sourcename }}
@@ -72,26 +109,31 @@ jobs:
 
   linux-arm64:
     runs-on: ubuntu-20.04
+    needs: check-types
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
 
       - name: Cache build sources
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache
           key: linux-arm64-build-cache
 
       - name: build & package
         run: |
-          # try and avoid timeout errors
-          yarn config set network-timeout 100000 -g
+          corepack enable
 
+          # try and avoid timeout errors
+          yarn config set httpTimeout 100000
+
+          yarn --immutable
           yarn update
 
           yarn zx tools/build/complete.mjs linux-arm64
@@ -120,7 +162,7 @@ jobs:
         uses: bitfocus/actions/upload-and-notify@main
         with:
           long-version: ${{ steps.filenames.outputs.longversion }}
-          beta-branch: beta
+          beta-branch: main
           dev-branch: develop
 
           source-filename: ${{ steps.filenames.outputs.sourcename }}
@@ -136,26 +178,31 @@ jobs:
 
   osx:
     runs-on: macos-11
+    needs: check-types
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
 
       - name: Cache build sources
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache
           key: macos-x64-build-cache
 
       - name: build & package
         run: |
-          # try and avoid timeout errors
-          yarn config set network-timeout 100000 -g
+          corepack enable
 
+          # try and avoid timeout errors
+          yarn config set httpTimeout 100000
+
+          yarn --immutable
           yarn update
 
           yarn zx tools/build/complete.mjs
@@ -183,7 +230,7 @@ jobs:
         uses: bitfocus/actions/upload-and-notify@main
         with:
           long-version: ${{ steps.filenames.outputs.longversion }}
-          beta-branch: beta
+          beta-branch: main
           dev-branch: develop
 
           source-filename: ${{ steps.filenames.outputs.sourcename }}
@@ -199,26 +246,31 @@ jobs:
 
   osx-arm64:
     runs-on: macos-11
+    needs: check-types
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
 
       - name: Cache build sources
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache
           key: macos-arm64-build-cache
 
       - name: yarn update
         run: |
-          # try and avoid timeout errors
-          yarn config set network-timeout 100000 -g
+          corepack enable
 
+          # try and avoid timeout errors
+          yarn config set httpTimeout 100000
+
+          yarn --immutable
           yarn update
         env:
           CI: 1
@@ -250,7 +302,7 @@ jobs:
         uses: bitfocus/actions/upload-and-notify@main
         with:
           long-version: ${{ steps.filenames.outputs.longversion }}
-          beta-branch: beta
+          beta-branch: main
           dev-branch: develop
 
           source-filename: ${{ steps.filenames.outputs.sourcename }}
@@ -266,17 +318,19 @@ jobs:
 
   win64:
     runs-on: windows-2019
+    needs: check-types
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
 
       - name: Cache build sources
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .cache
           key: windows-x64-build-cache
@@ -284,16 +338,13 @@ jobs:
       - name: build & package
         shell: bash
         run: |
+          corepack enable
+
           # try and avoid timeout errors
-          yarn config set network-timeout 100000 -g
+          yarn config set httpTimeout 100000
 
-          # This fixes it somehow, and without it we get no logs from any shell scripts which are run
-          yarn config set script-shell bash
-
+          yarn --immutable
           yarn update
-
-          # zx needs this to be unset..
-          yarn config set script-shell ''
 
           yarn zx tools/build/complete.mjs
         env:
@@ -316,7 +367,7 @@ jobs:
         uses: bitfocus/actions/upload-and-notify@main
         with:
           long-version: ${{ steps.filenames.outputs.longversion }}
-          beta-branch: beta
+          beta-branch: main
           dev-branch: develop
 
           source-filename: ${{ steps.filenames.outputs.sourcename }}
@@ -355,25 +406,25 @@ jobs:
 
       - name: Set up QEMU
         if: ${{ steps.meta.outputs.tags }}
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         if: ${{ steps.meta.outputs.tags }}
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to registry
         if: ${{ steps.meta.outputs.tags }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: ${{ steps.meta.outputs.tags }}
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         if: ${{ steps.meta.outputs.tags }}
         with:
           context: .

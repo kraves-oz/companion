@@ -1,42 +1,40 @@
 {
-	"name": "companion-launcher",
+	"name": "@companion-app/launcher",
 	"description": "Companion",
-	"version": "0.0.1",
+	"version": "3.3.0",
 	"main": "main.js",
 	"license": "MIT",
 	"private": true,
-	"type": "commonjs",
+	"type": "module",
 	"scripts": {
 		"start": "electron main.js",
-		"dev": "electron dev.js"
+		"dev": "electron dev.cjs"
 	},
 	"dependencies": {
-		"@sentry/electron": "^4.11.0",
-		"chokidar": "^3.5.3",
-		"debounce-fn": "^4.0.0",
-		"electron-store": "^8.1.0",
+		"@sentry/electron": "^4.21.0",
+		"chokidar": "^3.6.0",
+		"debounce-fn": "^6.0.0",
+		"electron-store": "^8.2.0",
 		"file-stream-rotator": "^1.0.0",
-		"fs-extra": "^11.1.1",
-		"nanoid": "^3.3.4",
+		"fs-extra": "^11.2.0",
+		"nanoid": "^5.0.6",
 		"plist": "^3.1.0",
-		"respawn": "link:../vendor/respawn",
-		"semver": "^7.5.4",
-		"strip-ansi": "^6.0.0",
-		"systeminformation": "^5.21.7"
+		"respawn": "*",
+		"semver": "^7.6.0",
+		"strip-ansi": "^7.1.0",
+		"systeminformation": "^5.22.6"
 	},
 	"devDependencies": {
-		"@electron/notarize": "^2.1.0",
-		"electron": "^24.8.5",
-		"electron-builder": "^23.6.0",
+		"@electron/notarize": "^2.3.0",
+		"@types/plist": "^3.0.5",
+		"electron": "28.2.8",
+		"electron-builder": "24.9.1",
 		"electron-reloader": "^1.2.3"
-	},
-	"resolutions": {
-		"app-builder-bin": "npm:@julusian/app-builder-bin#v4.0.1"
 	},
 	"build": {
 		"productName": "Companion",
+		"executableName": "Companion",
 		"appId": "test-companion.bitfocus.no",
-		"remoteBuild": false,
 		"dmg": {
 			"artifactName": "companion-mac-${arch}.dmg",
 			"sign": true
@@ -46,7 +44,8 @@
 			"category": "no.bitfocus.companion",
 			"extendInfo": {
 				"LSBackgroundOnly": 1,
-				"LSUIElement": 1
+				"LSUIElement": 1,
+				"NSAppleEventsUsageDescription": "Companion uses AppleEvents to control local applications."
 			},
 			"hardenedRuntime": "true",
 			"gatekeeperAssess": "false",
@@ -67,7 +66,8 @@
 			"allowToChangeInstallationDirectory": true,
 			"installerIcon": "icon.ico",
 			"installerSidebar": "compinst.bmp",
-			"uninstallerSidebar": "compinst.bmp"
+			"uninstallerSidebar": "compinst.bmp",
+			"include": "windows/installer.nsi"
 		},
 		"directories": {
 			"buildResources": "assets/",
@@ -75,6 +75,7 @@
 		},
 		"linux": {
 			"target": "dir",
+			"executableName": "companion-launcher",
 			"artifactName": "companion-x64",
 			"extraFiles": [
 				{

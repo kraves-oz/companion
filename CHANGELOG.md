@@ -1,5 +1,225 @@
 # Bitfocus Companion
 
+## Companion v3.2.2 - Release Notes
+
+### 🐞 BUG FIXES
+
+- Launcher window growing horizontally infinitely
+- Ensure application exits properly with the launcher
+- Fix logging of rosstalk connections #2758 #2747
+- Show button previews in actions/feedbacks while editing triggers
+- Grid header layout issues in firefox
+- Incomplete documentation for expression syntax #2743
+- Restarting modules during development being too agressive #2741
+
+### 🧩 UPDATED MODULES
+
+- allenheath-ahm
+- bmd-hyperdeck
+- bmd-webpresenter
+- colorlight-grandshow
+- figure53-qlab-advance
+- generic-ssh
+- justmacros-lua
+- studiocoast-vmix
+
+## Companion v3.2.1 - Release Notes
+
+### 🐞 BUG FIXES
+
+- Disable emoji font, as it causes consume to consume all available memory on some windows machines #2714
+- Ensure font paths are loaded relative to the application, not working directory #2716
+- Buttons incorrectly scale up small images #2718
+- Ignore disabled actions when checking connection status on a button
+- Changing connection label fails if actions/feedbacks/events reference invalid variables #2719
+- Connection list crashing #2735
+- Ensure long page names don't cause page picker to split into multiple lines
+- Occasional crash when disconnecting usb device #2735
+- Increase launcher stable check timeout
+- Imported emulators not being setup until restart
+- Typo in tcp/udp documentation #2717
+
+### 🧩 UPDATED MODULES
+
+- birddog-ptz
+- bmd-atem
+- figure53-qlab-advance
+- malighting-grandma3
+- middlethings-middlecontrol
+- netgear-avline
+- pixelhue-switcher
+- restream-api
+- roku-tv
+- roland-v60hd
+- smodetech-smodelive
+- softron-ontheairvideo
+- studiocoast-vmix
+- techministry-midirelay
+
+## Companion v3.2.0 - Release Notes
+
+### 📣 CORE FEATURES AND IMPROVEMENTS
+
+- Button grid can be resized to be smaller or larger than the default 8x4
+- Rework button image drawing, to be higher resolution. This changes some font sizes slightly.
+
+- Improved surface rotation, which rotates the whole surface not just the drawing of each button
+- Change surface image scaling library to reduce install size and improve performance
+- Use async HID library, removing spawning of child processes to handle HID devices
+- Add fontsize and image scaling to satellite api
+- Surfaces can be grouped, so that they follow page changes with each other
+- Elgato Plugin performance improvements
+- Export and import compressed configs
+- Add support for Loupedeck CT
+- Add support for Videohub Panel as a surface
+- Send compressed button renders to webui
+- Emulators can have their grid size changed
+- Tablet page performance improvements
+- Bonjour discovery broker to assist modules in discovering possible devices to control
+- Indicate variables support on text input fields
+- Internal action to set or create custom variable
+- Slow down connection initiaisation at startup, to avoid crashes on lower power machines
+- Change webui build tooling to be more modern
+- Rework backend code to be loosely typed
+- Rework various api implementations, to support customisable grid size and avoid 'bank' terminology
+- Learn timeout can be configured by modules
+- Add variables about surfaces and surface groups
+- Add variables for connection statuses
+- Add seperate press/release if condition actions
+
+### 🐞 BUG FIXES
+
+- Streamdeck Plus LCD strip image positioning
+- Preserve sort order when importing connections
+- Restore `app_exit` action
+- Connections sometimes getting stuck and unable to start
+
+### 🧩 NEW & UPDATED MODULES
+
+- agf-characterworks
+- audiostrom-liveprofessor
+- avmediatools-protimer
+- avocet-landscape
+- avstumpfl-pixera
+- aximmetry-composer
+- barco-clickshare
+- barco-eventmaster
+- behringer-x32
+- birddog-central
+- birddog-cloud
+- birddog-ptz
+- bmd-atem
+- bmd-hyperdeck
+- bmd-ultimatte
+- bmd-videohub
+- bmd-webpresenter
+- canon-ptz
+- christie-spyder
+- colorlight-grandshow
+- colorlight-processor
+- dan-dugan-automixer
+- dataton-watchout
+- denon-recorder
+- depili-clock-8001
+- emotimo-st4
+- etc-eos
+- etc-paradigm
+- etcaudiovisuel-onlyview
+- extron-smp351
+- figure53-go-button
+- figure53-qlab-advance
+- gdsys-muxkvmswitch
+- generic-bridge
+- generic-dataentry
+- generic-mqtt
+- generic-pjlink
+- generic-speedtest
+- generic-stopwatch
+- generic-swp02
+- generic-tcp-serial
+- getontime-ontime
+- glensound-minferno
+- globalcache-itac-cc
+- google-sheets
+- grassvalley-amp
+- h2r-graphics
+- iccms-sib
+- iiyama-prolite
+- imimot-mitti
+- ipl-ocp
+- kenku-fm
+- leolabs-ableset
+- lofas-ndistudioclock
+- logos-proclaim
+- luminex-gigacore
+- luminex-luminode
+- magewell-director
+- malighting-grandma2
+- malighting-grandma3
+- malighting-msc
+- massimo-callegari-qlcplus
+- microsoft-vscode
+- middlethings-middlecontrol
+- mixtech-theatremix
+- modulopi-moduloplayer
+- mt-viki-matrix
+- mvr-helios
+- newtek-tricaster
+- novastar-controller
+- novastar-mediaserver
+- novastar-switcher
+- ntp-technology-dot
+- obs-studio
+- openweather-rest
+- panasonic-kairos
+- panasonic-projector
+- panasonic-ptz
+- pixelhue-mediaserver
+- pixelhue-switcher
+- planningcenter-serviceslive
+- presentationtools-aps
+- ptzoptics-visca
+- qsys-remote-control
+- riedel-mediornet
+- rogueamoeba-farrago
+- roku-tv
+- roland-v60hd
+- shelly-ws
+- shure-mxcw
+- shure-scm820
+- shure-wireless
+- simedia-yesapi
+- singularlive-studio
+- smodetech-smodelive
+- snapav-wattbox
+- softron-movierecorder
+- softron-multicamlogger
+- sonos-speakers
+- soundcraft-ui
+- spx-graphics-controller
+- stagetimerio-api
+- studiocoast-vmix
+- tascam-cd
+- tascam-cd400u
+- tascam-da-6400
+- techministry-midirelay
+- tellyo-streamstudio
+- teradek-prism
+- theatrixx-xpresscue
+- timemachines-clock
+- tow-mixeffect
+- ubiquiti-unifi
+- vbaudio-voicemeeter
+- vdo-ninja
+- videolan-vlc
+- vistream-online
+- voicemod-api
+- wled-websocket
+- yamaha-rcp
+- youtube-live
+- zenvideo-ndirouter
+- zinc-oscpoint
+
 ## Companion v3.1.2 - Release Notes
 
 ### 🐞 BUG FIXES
