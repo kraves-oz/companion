@@ -16,7 +16,7 @@
  */
 
 import { LRUCache } from 'lru-cache'
-import { FontLibrary } from '@julusian/skia-canvas'
+import { GlobalFonts } from '@napi-rs/canvas'
 import GraphicsRenderer from './Renderer.js'
 import CoreBase from '../Core/Base.js'
 import { xyToOldBankIndex } from '@companion-app/shared/ControlId.js'
@@ -133,23 +133,30 @@ class GraphicsController extends CoreBase {
 					const control = controlId ? this.controls.getControl(controlId) : undefined
 					const buttonStyle = control?.getDrawStyle() ?? undefined
 
+					if (location && locationIsInBounds) {
+						// Update the internal b_text_1_4 variable
+						setImmediate(() => {
+							/** @type {import('@companion-module/base').CompanionVariableValues} */
+							const values = {}
+
+							// Update text, if it is present
+							values[`b_text_${location.pageNumber}_${location.row}_${location.column}`] =
+								buttonStyle?.style === 'button' ? buttonStyle.text : undefined
+							const bankIndex = xyToOldBankIndex(location.column, location.row)
+							if (bankIndex)
+								values[`b_text_${location.pageNumber}_${bankIndex}`] =
+									buttonStyle?.style === 'button' ? buttonStyle.text : undefined
+
+							// Update step
+							values[`b_step_${location.pageNumber}_${location.row}_${location.column}`] =
+								buttonStyle?.style === 'button' ? buttonStyle.step_cycle ?? 1 : undefined
+
+							this.instance.variable.setVariableValues('internal', values)
+						})
+					}
+
 					let render
 					if (location && locationIsInBounds && buttonStyle && buttonStyle.style) {
-						// Update the internal b_text_1_4 variable
-						if (location && 'text' in buttonStyle) {
-							const variableValue = buttonStyle.text
-							setImmediate(() => {
-								const values = {
-									[`b_text_${location.pageNumber}_${location.row}_${location.column}`]: variableValue,
-								}
-
-								const bankIndex = xyToOldBankIndex(location.column, location.row)
-								if (bankIndex) values[`b_text_${location.pageNumber}_${bankIndex}`] = variableValue
-
-								this.instance.variable.setVariableValues('internal', values)
-							})
-						}
-
 						const pagename = this.page.getPageName(location.pageNumber)
 
 						// Check if the image is already present in the render cache and if so, return it
@@ -203,20 +210,18 @@ class GraphicsController extends CoreBase {
 		) // TODO - dynamic limit
 
 		this.logger.info('Loading fonts')
-		FontLibrary.reset()
-		FontLibrary.use({
-			'Companion-sans': generateFontUrl('Arimo-Regular.ttf'),
-			'Companion-mono': generateFontUrl('NotoSansMono-wdth-wght.ttf'),
-			'Companion-symbols1': generateFontUrl('NotoSansSymbols-wght.ttf'),
-			'Companion-symbols2': generateFontUrl('NotoSansSymbols2-Regular.ttf'),
-			'Companion-symbols3': generateFontUrl('NotoSansMath-Regular.ttf'),
-			'Companion-symbols4': generateFontUrl('NotoMusic-Regular.ttf'),
-			'Companion-symbols5': generateFontUrl('NotoSansLinearA-Regular.ttf'),
-			'Companion-symbols6': generateFontUrl('NotoSansLinearB-Regular.ttf'),
-			// 'Companion-emoji': generateFontUrl('NotoColorEmoji-compat.ttf'),
-			'5x7': generateFontUrl('pf_tempesta_seven.ttf'),
-		})
-		this.fonts = FontLibrary.families
+
+		GlobalFonts.registerFromPath(generateFontUrl('Arimo-Regular.ttf'), 'Companion-sans')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansMono-wdth-wght.ttf'), 'Companion-mono')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansSymbols-wght.ttf'), 'Companion-symbols1')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansSymbols2-Regular.ttf'), 'Companion-symbols2')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansMath-Regular.ttf'), 'Companion-symbols3')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoMusic-Regular.ttf'), 'Companion-symbols4')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansLinearA-Regular.ttf'), 'Companion-symbols5')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoSansLinearB-Regular.ttf'), 'Companion-symbols6')
+		GlobalFonts.registerFromPath(generateFontUrl('NotoColorEmoji-compat.ttf'), 'Companion-emoji')
+		GlobalFonts.registerFromPath(generateFontUrl('pf_tempesta_seven.ttf'), '5x7')
+
 		this.logger.info('Fonts loaded')
 	}
 

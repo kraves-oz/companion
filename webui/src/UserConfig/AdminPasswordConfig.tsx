@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUndo } from '@fortawesome/free-solid-svg-icons'
 import CSwitch from '../CSwitch.js'
 import type { UserConfigModel } from '@companion-app/shared/Model/UserConfigModel.js'
+import { observer } from 'mobx-react-lite'
 
 interface AdminPasswordConfigProps {
 	config: UserConfigModel
@@ -11,7 +12,11 @@ interface AdminPasswordConfigProps {
 	resetValue: (key: keyof UserConfigModel) => void
 }
 
-export function AdminPasswordConfig({ config, setValue, resetValue }: AdminPasswordConfigProps) {
+export const AdminPasswordConfig = observer(function AdminPasswordConfig({
+	config,
+	setValue,
+	resetValue,
+}: AdminPasswordConfigProps) {
 	return (
 		<>
 			<tr>
@@ -46,7 +51,7 @@ export function AdminPasswordConfig({ config, setValue, resetValue }: AdminPassw
 					</CButton>
 				</td>
 			</tr>
-			<tr>
+			{ config.admin_lockout && (<tr>
 				<td>Session Timeout (minutes, 0 for no timeout)</td>
 				<td>
 					<div className="form-check form-check-inline mr-1">
@@ -55,7 +60,11 @@ export function AdminPasswordConfig({ config, setValue, resetValue }: AdminPassw
 							value={config.admin_timeout}
 							min={0}
 							step={1}
-							onChange={(e) => setValue('admin_timeout', e.currentTarget.value)}
+							onChange={(e) => {
+								let value = Math.floor(e.currentTarget.value)
+								value = Math.max(value, 0)
+								setValue('admin_timeout', value)
+							}}
 						/>
 					</div>
 				</td>
@@ -64,8 +73,8 @@ export function AdminPasswordConfig({ config, setValue, resetValue }: AdminPassw
 						<FontAwesomeIcon icon={faUndo} />
 					</CButton>
 				</td>
-			</tr>
-			<tr>
+			</tr>)}
+			{ config.admin_lockout && (<tr>
 				<td>Password</td>
 				<td>
 					<div className="form-check form-check-inline mr-1">
@@ -81,7 +90,7 @@ export function AdminPasswordConfig({ config, setValue, resetValue }: AdminPassw
 						<FontAwesomeIcon icon={faUndo} />
 					</CButton>
 				</td>
-			</tr>
+			</tr>)}
 		</>
 	)
-}
+})

@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUndo } from '@fortawesome/free-solid-svg-icons'
 import CSwitch from '../CSwitch.js'
 import type { UserConfigModel } from '@companion-app/shared/Model/UserConfigModel.js'
+import { observer } from 'mobx-react-lite'
 
 interface OscConfigProps {
 	config: UserConfigModel
@@ -11,7 +12,7 @@ interface OscConfigProps {
 	resetValue: (key: keyof UserConfigModel) => void
 }
 
-export function OscConfig({ config, setValue, resetValue }: OscConfigProps) {
+export const OscConfig = observer(function OscConfig({ config, setValue, resetValue }: OscConfigProps) {
 	return (
 		<>
 			<tr>
@@ -38,23 +39,6 @@ export function OscConfig({ config, setValue, resetValue }: OscConfigProps) {
 				</td>
 			</tr>
 			<tr>
-				<td>OSC Listen Port</td>
-				<td>
-					<div className="form-check form-check-inline mr-1">
-						<CInput
-							type="number"
-							value={config.osc_listen_port}
-							onChange={(e) => setValue('osc_listen_port', e.currentTarget.value)}
-						/>
-					</div>
-				</td>
-				<td>
-					<CButton onClick={() => resetValue('osc_listen_port')} title="Reset to default">
-						<FontAwesomeIcon icon={faUndo} />
-					</CButton>
-				</td>
-			</tr>
-			<tr>
 				<td>
 					Deprecated OSC API
 					<br />
@@ -76,6 +60,28 @@ export function OscConfig({ config, setValue, resetValue }: OscConfigProps) {
 					</CButton>
 				</td>
 			</tr>
+			{ (config.osc_enabled || config.osc_legacy_api_enabled) && (<tr>
+				<td>OSC Listen Port</td>
+				<td>
+					<div className="form-check form-check-inline mr-1">
+						<CInput
+							type="number"
+							value={config.osc_listen_port}
+							onChange={(e) => {
+								let value = Math.floor(e.currentTarget.value)
+								value = Math.min(value, 65535)
+								value = Math.max(value, 1024)
+								setValue('osc_listen_port', value)
+							}}
+						/>
+					</div>
+				</td>
+				<td>
+					<CButton onClick={() => resetValue('osc_listen_port')} title="Reset to default">
+						<FontAwesomeIcon icon={faUndo} />
+					</CButton>
+				</td>
+			</tr>)}
 		</>
 	)
-}
+})

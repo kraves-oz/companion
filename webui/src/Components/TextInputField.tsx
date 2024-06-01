@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext, useRef } from 'react'
 import { CInput } from '@coreui/react'
-import { VariableDefinitionsContext } from '../util.js'
 import Select, {
 	ControlProps,
 	OptionProps,
@@ -12,6 +11,7 @@ import { MenuPortalContext } from './DropdownInputField.js'
 import { DropdownChoiceId } from '@companion-module/base'
 import { observer } from 'mobx-react-lite'
 import { WindowedMenuList } from 'react-windowed-select'
+import { RootAppStoreContext } from '../Stores/RootAppStore.js'
 
 interface TextInputFieldProps {
 	regex?: string
@@ -24,7 +24,7 @@ interface TextInputFieldProps {
 	setValid?: (valid: boolean) => void
 	disabled?: boolean
 	useVariables?: boolean
-	useLocationVariables?: boolean
+	useLocalVariables?: boolean
 }
 
 export const TextInputField = observer(function TextInputField({
@@ -38,7 +38,7 @@ export const TextInputField = observer(function TextInputField({
 	setValid,
 	disabled,
 	useVariables,
-	useLocationVariables,
+	useLocalVariables,
 }: TextInputFieldProps) {
 	const [tmpValue, setTmpValue] = useState<string | null>(null)
 
@@ -116,7 +116,7 @@ export const TextInputField = observer(function TextInputField({
 				<VariablesSelect
 					showValue={showValue}
 					style={extraStyle}
-					useLocationVariables={!!useLocationVariables}
+					useLocalVariables={!!useLocalVariables}
 					storeValue={storeValue}
 					focusStoreValue={focusStoreValue}
 					blurClearValue={blurClearValue}
@@ -176,7 +176,7 @@ interface DropdownChoiceInt {
 interface VariablesSelectProps {
 	showValue: string
 	style: React.CSSProperties
-	useLocationVariables: boolean
+	useLocalVariables: boolean
 	storeValue: (value: string) => void
 	focusStoreValue: () => void
 	blurClearValue: () => void
@@ -185,10 +185,10 @@ interface VariablesSelectProps {
 	disabled: boolean | undefined
 }
 
-function VariablesSelect({
+const VariablesSelect = observer(function VariablesSelect({
 	showValue,
 	style,
-	useLocationVariables,
+	useLocalVariables,
 	storeValue,
 	focusStoreValue,
 	blurClearValue,
@@ -196,23 +196,21 @@ function VariablesSelect({
 	title,
 	disabled,
 }: Readonly<VariablesSelectProps>) {
-	const variableDefinitionsContext = useContext(VariableDefinitionsContext)
+	const { variablesStore } = useContext(RootAppStoreContext)
 	const menuPortal = useContext(MenuPortalContext)
 
+	const baseVariableDefinitions = variablesStore.allVariableDefinitions.get()
 	const options = useMemo(() => {
 		// Update the suggestions list in tribute whenever anything changes
 		const suggestions: DropdownChoiceInt[] = []
-		for (const [connectionLabel, variables] of Object.entries(variableDefinitionsContext)) {
-			for (const [name, va] of Object.entries(variables || {})) {
-				if (!va) continue
-				suggestions.push({
-					value: `${connectionLabel}:${name}`,
-					label: va.label,
-				})
-			}
+		for (const variable of baseVariableDefinitions) {
+			suggestions.push({
+				value: `${variable.connectionLabel}:${variable.name}`,
+				label: variable.label,
+			})
 		}
 
-		if (useLocationVariables) {
+		if (useLocalVariables) {
 			suggestions.push(
 				{
 					value: 'this:page',
@@ -227,6 +225,10 @@ function VariablesSelect({
 					label: 'This row',
 				},
 				{
+					value: 'this:step',
+					label: 'The current step of this button',
+				},
+				{
 					value: 'this:page_name',
 					label: 'This page name',
 				}
@@ -234,7 +236,7 @@ function VariablesSelect({
 		}
 
 		return suggestions
-	}, [variableDefinitionsContext, useLocationVariables])
+	}, [baseVariableDefinitions, useLocalVariables])
 
 	const [cursorPosition, setCursorPosition] = useState<number | null>(null)
 	const { isPickerOpen, searchValue, setIsForceHidden } = useIsPickerOpen(showValue, cursorPosition)
@@ -320,7 +322,7 @@ function VariablesSelect({
 			/>
 		</VariablesSelectContext.Provider>
 	)
-}
+})
 
 const VariablesSelectContext = React.createContext({
 	value: '',

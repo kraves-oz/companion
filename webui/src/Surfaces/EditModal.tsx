@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useImperativeHandle, useState } from 'react'
 import {
 	CButton,
 	CForm,
@@ -12,13 +12,7 @@ import {
 	CModalHeader,
 	CSelect,
 } from '@coreui/react'
-import {
-	LoadingRetryOrError,
-	socketEmitPromise,
-	SocketContext,
-	PreventDefaultHandler,
-	SurfacesContext,
-} from '../util.js'
+import { LoadingRetryOrError, socketEmitPromise, PreventDefaultHandler, useComputed } from '../util.js'
 import { nanoid } from 'nanoid'
 import { faQuestionCircle } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -26,6 +20,8 @@ import { InternalInstanceField } from '../Controls/InternalInstanceFields.js'
 import { MenuPortalContext } from '../Components/DropdownInputField.js'
 import { ClientDevicesListItem, SurfaceGroupConfig, SurfacePanelConfig } from '@companion-app/shared/Model/Surfaces.js'
 import { InternalInputField } from '@companion-app/shared/Model/Options.js'
+import { RootAppStoreContext } from '../Stores/RootAppStore.js'
+import { observer } from 'mobx-react-lite'
 
 const PAGE_FIELD_SPEC: InternalInputField = {
 	id: '',
@@ -43,10 +39,9 @@ interface SurfaceEditModalProps {
 	// Nothing
 }
 
-export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModalProps>(
+export const SurfaceEditModal = observer<SurfaceEditModalProps, SurfaceEditModalRef>(
 	function SurfaceEditModal(_props, ref) {
-		const socket = useContext(SocketContext)
-		const surfacesContext = useContext(SurfacesContext)
+		const { surfaces, socket } = useContext(RootAppStoreContext)
 
 		const [rawGroupId, setGroupId] = useState<string | null>(null)
 		const [surfaceId, setSurfaceId] = useState<string | null>(null)
@@ -54,7 +49,7 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 
 		let surfaceInfo = null
 		if (surfaceId) {
-			for (const group of Object.values(surfacesContext)) {
+			for (const group of surfaces.store.values()) {
 				if (surfaceInfo || !group) break
 
 				for (const surface of group.surfaces) {
@@ -72,7 +67,7 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 		const groupId = surfaceInfo && !surfaceInfo.groupId ? surfaceId : rawGroupId
 		let groupInfo = null
 		if (groupId) {
-			for (const group of Object.values(surfacesContext)) {
+			for (const group of surfaces.store.values()) {
 				if (group && group.id === groupId) {
 					groupInfo = group
 					break
@@ -133,11 +128,9 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 			[]
 		)
 
-		useEffect(() => {
-			// If surface disappears/disconnects, hide this
-
+		const onlineSurfaceIds = useComputed(() => {
 			const onlineSurfaceIds = new Set()
-			for (const group of Object.values(surfacesContext)) {
+			for (const group of surfaces.store.values()) {
 				if (!group) continue
 				for (const surface of group.surfaces) {
 					if (surface.isConnected) {
@@ -145,6 +138,11 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 					}
 				}
 			}
+			return onlineSurfaceIds
+		}, [surfaces])
+
+		useEffect(() => {
+			// If surface disappears/disconnects, hide this
 
 			setSurfaceId((oldSurfaceId) => {
 				if (oldSurfaceId && !onlineSurfaceIds.has(oldSurfaceId)) {
@@ -152,7 +150,7 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 				}
 				return oldSurfaceId
 			})
-		}, [surfacesContext])
+		}, [onlineSurfaceIds])
 
 		const setSurfaceConfigValue = useCallback(
 			(key: string, value: any) => {
@@ -252,7 +250,7 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 									>
 										<option value="null">Standalone (Default)</option>
 
-										{Object.values(surfacesContext)
+										{Array.from(surfaces.store.values())
 											.filter((group): group is ClientDevicesListItem => !!group && !group.isAutoGroup)
 											.map((group) => (
 												<option key={group.id} value={group.id}>
@@ -324,26 +322,30 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 										</>
 									)}
 
-									<CFormGroup>
-										<CLabel htmlFor="page">Horizontal Offset in grid</CLabel>
-										<CInput
-											name="page"
-											type="number"
-											step={1}
-											value={surfaceConfig.xOffset}
-											onChange={(e) => setSurfaceConfigValue('xOffset', parseInt(e.currentTarget.value))}
-										/>
-									</CFormGroup>
-									<CFormGroup>
-										<CLabel htmlFor="page">Vertical Offset in grid</CLabel>
-										<CInput
-											name="page"
-											type="number"
-											step={1}
-											value={surfaceConfig.yOffset}
-											onChange={(e) => setSurfaceConfigValue('yOffset', parseInt(e.currentTarget.value))}
-										/>
-									</CFormGroup>
+									{!surfaceInfo.configFields?.includes('no_offset') && (
+										<>
+											<CFormGroup>
+												<CLabel htmlFor="page">Horizontal Offset in grid</CLabel>
+												<CInput
+													name="page"
+													type="number"
+													step={1}
+													value={surfaceConfig.xOffset}
+													onChange={(e) => setSurfaceConfigValue('xOffset', parseInt(e.currentTarget.value))}
+												/>
+											</CFormGroup>
+											<CFormGroup>
+												<CLabel htmlFor="page">Vertical Offset in grid</CLabel>
+												<CInput
+													name="page"
+													type="number"
+													step={1}
+													value={surfaceConfig.yOffset}
+													onChange={(e) => setSurfaceConfigValue('yOffset', parseInt(e.currentTarget.value))}
+												/>
+											</CFormGroup>
+										</>
+									)}
 
 									{surfaceInfo.configFields?.includes('brightness') && (
 										<CFormGroup>
@@ -371,30 +373,32 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 										</CFormGroup>
 									)}
 
-									<CFormGroup>
-										<CLabel htmlFor="rotation">Button rotation</CLabel>
-										<CSelect
-											name="rotation"
-											value={surfaceConfig.rotation}
-											onChange={(e) => {
-												const valueNumber = parseInt(e.currentTarget.value)
-												setSurfaceConfigValue('rotation', isNaN(valueNumber) ? e.currentTarget.value : valueNumber)
-											}}
-										>
-											<option value="0">Normal</option>
-											<option value="surface-90">90 CCW</option>
-											<option value="surface90">90 CW</option>
-											<option value="surface180">180</option>
+									{!surfaceInfo.configFields?.includes('no_rotation') && (
+										<CFormGroup>
+											<CLabel htmlFor="rotation">Button rotation</CLabel>
+											<CSelect
+												name="rotation"
+												value={surfaceConfig.rotation}
+												onChange={(e) => {
+													const valueNumber = parseInt(e.currentTarget.value)
+													setSurfaceConfigValue('rotation', isNaN(valueNumber) ? e.currentTarget.value : valueNumber)
+												}}
+											>
+												<option value="0">Normal</option>
+												<option value="surface-90">90 CCW</option>
+												<option value="surface90">90 CW</option>
+												<option value="surface180">180</option>
 
-											{surfaceInfo.configFields?.includes('legacy_rotation') && (
-												<>
-													<option value="-90">90 CCW (Legacy)</option>
-													<option value="90">90 CW (Legacy)</option>
-													<option value="180">180 (Legacy)</option>
-												</>
-											)}
-										</CSelect>
-									</CFormGroup>
+												{surfaceInfo.configFields?.includes('legacy_rotation') && (
+													<>
+														<option value="-90">90 CCW (Legacy)</option>
+														<option value="90">90 CW (Legacy)</option>
+														<option value="180">180 (Legacy)</option>
+													</>
+												)}
+											</CSelect>
+										</CFormGroup>
+									)}
 									{surfaceInfo.configFields?.includes('emulator_control_enable') && (
 										<CFormGroup>
 											<CLabel htmlFor="emulator_control_enable">Enable support for Logitech R400/Mastercue/DSan</CLabel>
@@ -431,15 +435,17 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 											/>
 										</CFormGroup>
 									)}
-									<CFormGroup>
-										<CLabel htmlFor="never_lock">Never Pin code lock</CLabel>
-										<CInputCheckbox
-											name="never_lock"
-											type="checkbox"
-											checked={!!surfaceConfig.never_lock}
-											onChange={(e) => setSurfaceConfigValue('never_lock', !!e.currentTarget.checked)}
-										/>
-									</CFormGroup>
+									{!surfaceInfo.configFields?.includes('no_lock') && (
+										<CFormGroup>
+											<CLabel htmlFor="never_lock">Never Pin code lock</CLabel>
+											<CInputCheckbox
+												name="never_lock"
+												type="checkbox"
+												checked={!!surfaceConfig.never_lock}
+												onChange={(e) => setSurfaceConfigValue('never_lock', !!e.currentTarget.checked)}
+											/>
+										</CFormGroup>
+									)}
 								</>
 							)}
 						</CForm>
@@ -452,5 +458,6 @@ export const SurfaceEditModal = forwardRef<SurfaceEditModalRef, SurfaceEditModal
 				</MenuPortalContext.Provider>
 			</CModal>
 		)
-	}
+	},
+	{ forwardRef: true }
 )

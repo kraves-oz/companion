@@ -18,6 +18,7 @@
 @import 'scss/log';
 @import 'scss/presets';
 @import 'scss/settings';
+@import 'scss/wizard';
 
 @keyframes fadeIn {
 	from {
@@ -87,4 +88,8 @@
 
 .unstable-warning {
 	z-index: 10000;
+}
+
+.install-name {
+	color: white;
 }

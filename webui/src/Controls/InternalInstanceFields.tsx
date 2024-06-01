@@ -1,12 +1,6 @@
 import React, { useContext, useMemo } from 'react'
 import { DropdownInputField } from '../Components/index.js'
-import {
-	CustomVariableDefinitionsContext,
-	ConnectionsContext,
-	SurfacesContext,
-	VariableDefinitionsContext,
-	useComputed,
-} from '../util.js'
+import { ConnectionsContext, useComputed } from '../util.js'
 import TimePicker from 'react-time-picker'
 import { InternalInputField } from '@companion-app/shared/Model/Options.js'
 import { DropdownChoice } from '@companion-module/base'
@@ -99,7 +93,7 @@ function InternalInstanceIdDropdown({
 	disabled,
 	multiple,
 	filterActionsRecorder,
-}: InternalInstanceIdDropdownProps) {
+}: Readonly<InternalInstanceIdDropdownProps>) {
 	const context = useContext(ConnectionsContext)
 
 	const choices = useMemo(() => {
@@ -169,14 +163,15 @@ interface InternalCustomVariableDropdownProps {
 	disabled: boolean
 }
 
-export function InternalCustomVariableDropdown({
+export const InternalCustomVariableDropdown = observer(function InternalCustomVariableDropdown({
 	value,
 	setValue,
 	includeNone,
 	disabled,
-}: InternalCustomVariableDropdownProps) {
-	const context = useContext(CustomVariableDefinitionsContext)
-	const choices = useMemo(() => {
+}: Readonly<InternalCustomVariableDropdownProps>) {
+	const { variablesStore: customVariables } = useContext(RootAppStoreContext)
+
+	const choices = useComputed(() => {
 		const choices = []
 
 		if (includeNone) {
@@ -186,15 +181,15 @@ export function InternalCustomVariableDropdown({
 			})
 		}
 
-		for (const [id, info] of Object.entries(context)) {
+		for (const [id, info] of customVariables.customVariables) {
 			choices.push({
 				id,
-				label: `${info.description} (${id})`,
+				label: `${info.description} (internal:custom_${id})`,
 			})
 		}
 
 		return choices
-	}, [context, includeNone])
+	}, [customVariables, includeNone])
 
 	return (
 		<DropdownInputField
@@ -205,7 +200,7 @@ export function InternalCustomVariableDropdown({
 			setValue={setValue}
 		/>
 	)
-}
+})
 
 interface InternalVariableDropdownProps {
 	value: any
@@ -213,26 +208,29 @@ interface InternalVariableDropdownProps {
 	disabled: boolean
 }
 
-function InternalVariableDropdown({ value, setValue, disabled }: InternalVariableDropdownProps) {
-	const context = useContext(VariableDefinitionsContext)
+const InternalVariableDropdown = observer(function InternalVariableDropdown({
+	value,
+	setValue,
+	disabled,
+}: Readonly<InternalVariableDropdownProps>) {
+	const { variablesStore } = useContext(RootAppStoreContext)
+
+	const baseVariableDefinitions = variablesStore.allVariableDefinitions.get()
 	const choices = useMemo(() => {
 		const choices = []
 
-		for (const [connectionLabel, variables] of Object.entries(context)) {
-			for (const [name, variable] of Object.entries(variables || {})) {
-				if (!variable) continue
-				const id = `${connectionLabel}:${name}`
-				choices.push({
-					id,
-					label: `${variable.label} (${id})`,
-				})
-			}
+		for (const variable of baseVariableDefinitions) {
+			const id = `${variable.connectionLabel}:${variable.name}`
+			choices.push({
+				id,
+				label: `${variable.label} (${id})`,
+			})
 		}
 
 		choices.sort((a, b) => a.id.localeCompare(b.id))
 
 		return choices
-	}, [context])
+	}, [baseVariableDefinitions])
 
 	return (
 		<DropdownInputField
@@ -244,7 +242,7 @@ function InternalVariableDropdown({ value, setValue, disabled }: InternalVariabl
 			allowCustom /* Allow specifying a variable which doesnt currently exist, perhaps as something is offline */
 		/>
 	)
-}
+})
 
 interface InternalSurfaceBySerialDropdownProps {
 	isOnControl: boolean
@@ -255,7 +253,7 @@ interface InternalSurfaceBySerialDropdownProps {
 	useRawSurfaces: boolean | undefined
 }
 
-function InternalSurfaceBySerialDropdown({
+const InternalSurfaceBySerialDropdown = observer(function InternalSurfaceBySerialDropdown({
 	isOnControl,
 	value,
 	setValue,
@@ -263,16 +261,16 @@ function InternalSurfaceBySerialDropdown({
 	includeSelf,
 	useRawSurfaces,
 }: InternalSurfaceBySerialDropdownProps) {
-	const surfacesContext = useContext(SurfacesContext)
+	const { surfaces } = useContext(RootAppStoreContext)
 
-	const choices = useMemo(() => {
+	const choices = useComputed(() => {
 		const choices: DropdownChoice[] = []
 		if (isOnControl && includeSelf) {
 			choices.push({ id: 'self', label: 'Current surface' })
 		}
 
 		if (!useRawSurfaces) {
-			for (const group of Object.values(surfacesContext ?? {})) {
+			for (const group of surfaces.store.values()) {
 				if (!group) continue
 
 				choices.push({
@@ -281,7 +279,7 @@ function InternalSurfaceBySerialDropdown({
 				})
 			}
 		} else {
-			for (const group of Object.values(surfacesContext ?? {})) {
+			for (const group of surfaces.store.values()) {
 				if (!group) continue
 
 				for (const surface of group.surfaces) {
@@ -294,10 +292,10 @@ function InternalSurfaceBySerialDropdown({
 		}
 
 		return choices
-	}, [surfacesContext, isOnControl, includeSelf, useRawSurfaces])
+	}, [surfaces, isOnControl, includeSelf, useRawSurfaces])
 
 	return <DropdownInputField disabled={disabled} value={value} choices={choices} multiple={false} setValue={setValue} />
-}
+})
 
 interface InternalTriggerDropdownProps {
 	isOnControl: boolean
