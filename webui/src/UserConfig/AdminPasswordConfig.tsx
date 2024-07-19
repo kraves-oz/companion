@@ -1,8 +1,7 @@
 import React from 'react'
-import { CAlert, CButton, CInput } from '@coreui/react'
+import { CAlert, CButton, CFormInput, CFormSwitch } from '@coreui/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUndo } from '@fortawesome/free-solid-svg-icons'
-import CSwitch from '../CSwitch.js'
 import type { UserConfigModel } from '@companion-app/shared/Model/UserConfigModel.js'
 import { observer } from 'mobx-react-lite'
 
@@ -36,14 +35,13 @@ export const AdminPasswordConfig = observer(function AdminPasswordConfig({
 			<tr>
 				<td>Enable Locking</td>
 				<td>
-					<div className="form-check form-check-inline mr-1 float-right">
-						<CSwitch
-							color="success"
-							checked={config.admin_lockout}
-							size={'lg'}
-							onChange={(e) => setValue('admin_lockout', e.currentTarget.checked)}
-						/>
-					</div>
+					<CFormSwitch
+						className="float-right"
+						color="success"
+						checked={config.admin_lockout}
+						size="xl"
+						onChange={(e) => setValue('admin_lockout', e.currentTarget.checked)}
+					/>
 				</td>
 				<td>
 					<CButton onClick={() => resetValue('admin_lockout')} title="Reset to default">
@@ -52,48 +50,46 @@ export const AdminPasswordConfig = observer(function AdminPasswordConfig({
 				</td>
 			</tr>
 			{config.admin_lockout && (
-				<tr>
-					<td>Session Timeout (minutes, 0 for no timeout)</td>
-					<td>
-						<div className="form-check form-check-inline mr-1">
-							<CInput
+				<>
+					<tr>
+						<td>Session Timeout (minutes, 0 for no timeout)</td>
+						<td>
+							<CFormInput
 								type="number"
 								value={config.admin_timeout}
 								min={0}
 								step={1}
 								onChange={(e) => {
-									let value = Math.floor(e.currentTarget.value)
+									let value = Math.floor(Number(e.currentTarget.value))
+									if (isNaN(value)) return
+
 									value = Math.max(value, 0)
 									setValue('admin_timeout', value)
 								}}
 							/>
-						</div>
-					</td>
-					<td>
-						<CButton onClick={() => resetValue('admin_timeout')} title="Reset to default">
-							<FontAwesomeIcon icon={faUndo} />
-						</CButton>
-					</td>
-				</tr>
-			)}
-			{config.admin_lockout && (
-				<tr>
-					<td>Password</td>
-					<td>
-						<div className="form-check form-check-inline mr-1">
-							<CInput
+						</td>
+						<td>
+							<CButton onClick={() => resetValue('admin_timeout')} title="Reset to default">
+								<FontAwesomeIcon icon={faUndo} />
+							</CButton>
+						</td>
+					</tr>
+					<tr>
+						<td>Password</td>
+						<td>
+							<CFormInput
 								type="text"
 								value={config.admin_password}
 								onChange={(e) => setValue('admin_password', e.currentTarget.value)}
 							/>
-						</div>
-					</td>
-					<td>
-						<CButton onClick={() => resetValue('admin_password')} title="Reset to default">
-							<FontAwesomeIcon icon={faUndo} />
-						</CButton>
-					</td>
-				</tr>
+						</td>
+						<td>
+							<CButton onClick={() => resetValue('admin_password')} title="Reset to default">
+								<FontAwesomeIcon icon={faUndo} />
+							</CButton>
+						</td>
+					</tr>
+				</>
 			)}
 		</>
 	)

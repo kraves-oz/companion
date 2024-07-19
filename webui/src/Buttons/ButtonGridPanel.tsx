@@ -3,10 +3,8 @@ import {
 	CButton,
 	CCol,
 	CForm,
-	CFormGroup,
-	CInput,
-	CLabel,
-	CModal,
+	CFormInput,
+	CFormLabel,
 	CModalBody,
 	CModalFooter,
 	CModalHeader,
@@ -19,15 +17,15 @@ import { faFileExport, faHome, faPencil } from '@fortawesome/free-solid-svg-icon
 import { ConfirmExportModal, ConfirmExportModalRef } from '../Components/ConfirmExportModal.js'
 import { ButtonInfiniteGrid, ButtonInfiniteGridRef, PrimaryButtonGridIcon } from './ButtonInfiniteGrid.js'
 import { useHasBeenRendered } from '../Hooks/useHasBeenRendered.js'
-import { useResizeObserver } from 'usehooks-ts'
 import { ButtonGridHeader } from './ButtonGridHeader.js'
 import { ButtonGridActions, ButtonGridActionsRef } from './ButtonGridActions.js'
 import type { ControlLocation } from '@companion-app/shared/Model/Common.js'
 import { RootAppStoreContext } from '../Stores/RootAppStore.js'
 import { PagesStoreModel } from '../Stores/PagesStore.js'
 import { observer } from 'mobx-react-lite'
-import { ButtonGridZoomControl } from './ButtonGridZoomSlider.js'
+import { ButtonGridZoomControl } from './ButtonGridZoomControl.js'
 import { GridZoomController } from './GridZoom.js'
+import { CModalExt } from '../Components/CModalExt.js'
 
 interface ButtonsGridPanelProps {
 	pageNumber: number
@@ -117,7 +115,7 @@ export const ButtonsGridPanel = observer(function ButtonsPage({
 	const gridSize = userConfig.properties?.gridSize
 
 	const doGrow = useCallback(
-		(direction, amount) => {
+		(direction: 'left' | 'right' | 'top' | 'bottom', amount: number) => {
 			if (amount <= 0 || !gridSize) return
 
 			switch (direction) {
@@ -152,10 +150,6 @@ export const ButtonsGridPanel = observer(function ButtonsPage({
 
 	const [hasBeenInView, isInViewRef] = useHasBeenRendered()
 
-	const setSizeRef = useRef(null)
-	const holderSize = useResizeObserver({ ref: setSizeRef })
-	const useCompactButtons = (holderSize.width ?? 0) < 700 // Cutoff for what of the header row fit in the large mode
-
 	return (
 		<KeyReceiver onKeyDown={onKeyDown} tabIndex={0} className="button-grid-panel">
 			<div className="button-grid-panel-header" ref={isInViewRef}>
@@ -168,22 +162,20 @@ export const ButtonsGridPanel = observer(function ButtonsPage({
 					and what they should do when you press or click on them.
 				</p>
 
-				<CRow innerRef={setSizeRef}>
+				<CRow>
 					<CCol sm={12}>
 						<ButtonGridHeader pageNumber={pageNumber} changePage={changePage2} setPage={setPage}>
 							<CButton color="light" onClick={showExportModal} title="Export Page" className="btn-right">
 								<FontAwesomeIcon icon={faFileExport} />
-								&nbsp;
-								{useCompactButtons ? '' : 'Export Page'}
 							</CButton>
 							<CButton color="light" onClick={configurePage} title="Edit Page" className="btn-right">
-								<FontAwesomeIcon icon={faPencil} /> {useCompactButtons ? '' : 'Edit Page'}
+								<FontAwesomeIcon icon={faPencil} />
 							</CButton>
 							<CButton color="light" onClick={resetPosition} title="Home Position" className="btn-right">
-								<FontAwesomeIcon icon={faHome} /> {useCompactButtons ? '' : 'Home'}
+								<FontAwesomeIcon icon={faHome} />
 							</CButton>
 							<ButtonGridZoomControl
-								useCompactButtons={useCompactButtons}
+								useCompactButtons={true}
 								gridZoomValue={gridZoomValue}
 								gridZoomController={gridZoomController}
 							/>
@@ -283,34 +275,40 @@ const EditPagePropertiesModal = forwardRef<EditPagePropertiesModalRef, EditPageP
 			[]
 		)
 
-		const onNameChange = useCallback((e) => {
+		const onNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 			setName(e.target.value)
 		}, [])
 
 		return (
-			<CModal show={show} onClose={doClose} onClosed={onClosed} onOpened={buttonFocus}>
+			<CModalExt visible={show} onClose={doClose} onClosed={onClosed} onOpened={buttonFocus}>
 				<CModalHeader closeButton>
 					<h5>Configure Page {pageNumber}</h5>
 				</CModalHeader>
 				<CModalBody>
 					<CForm onSubmit={doAction}>
-						<CFormGroup>
-							<CLabel>Name</CLabel>
-							<CInput type="text" value={pageName || ''} onChange={onNameChange} />
-						</CFormGroup>
-
-						<CAlert color="info">You can use resize the grid in the Settings tab</CAlert>
+						<CRow className="mb-3">
+							<CFormLabel htmlFor="colFormName" className="col-sm-3 col-form-label col-form-label-sm">
+								Name
+							</CFormLabel>
+							<CCol sm={9}>
+								<CFormInput name="colFormName" type="text" value={pageName || ''} onChange={onNameChange} />
+							</CCol>
+							<CCol sm={12}>
+								<br />
+								<CAlert color="info">You can use resize the grid in the Settings tab</CAlert>
+							</CCol>
+						</CRow>
 					</CForm>
 				</CModalBody>
 				<CModalFooter>
 					<CButton color="secondary" onClick={doClose}>
 						Cancel
 					</CButton>
-					<CButton innerRef={buttonRef} color="primary" onClick={doAction}>
+					<CButton ref={buttonRef} color="primary" onClick={doAction}>
 						Save
 					</CButton>
 				</CModalFooter>
-			</CModal>
+			</CModalExt>
 		)
 	}
 )

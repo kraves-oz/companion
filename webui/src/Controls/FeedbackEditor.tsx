@@ -1,4 +1,4 @@
-import { CAlert, CButton, CForm, CFormGroup, CButtonGroup, CSwitch, CLabel } from '@coreui/react'
+import { CAlert, CButton, CForm, CButtonGroup, CFormSwitch, CFormLabel } from '@coreui/react'
 import {
 	faSort,
 	faTrash,
@@ -11,14 +11,14 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import React, { useCallback, useContext, useMemo, useRef, useState } from 'react'
-import { ConnectionsContext, MyErrorBoundary, PreventDefaultHandler } from '../util.js'
+import { ConnectionsContext, DragState, MyErrorBoundary, PreventDefaultHandler, checkDragState } from '../util.js'
 import { OptionsInputField } from './OptionsInputField.js'
 import { useDrag, useDrop } from 'react-dnd'
 import { GenericConfirmModal, GenericConfirmModalRef } from '../Components/GenericConfirmModal.js'
 import { CheckboxInputField, DropdownInputField, TextInputField } from '../Components/index.js'
 import { ButtonStyleConfigFields } from './ButtonStyleConfig.js'
 import { AddFeedbacksModal, AddFeedbacksModalRef } from './AddModal.js'
-import { usePanelCollapseHelper } from '../Helpers/CollapseHelper.js'
+import { PanelCollapseHelperLite, usePanelCollapseHelperLite } from '../Helpers/CollapseHelper.js'
 import { OptionButtonPreview } from './OptionButtonPreview.js'
 import { ButtonStyleProperties } from '@companion-app/shared/Style.js'
 import { FeedbackInstance } from '@companion-app/shared/Model/FeedbackModel.js'
@@ -36,6 +36,7 @@ import {
 } from '../Services/Controls/ControlFeedbacksService.js'
 import { observer } from 'mobx-react-lite'
 import { RootAppStoreContext } from '../Stores/RootAppStore.js'
+import classNames from 'classnames'
 
 interface ControlFeedbacksEditorProps {
 	controlId: string
@@ -47,7 +48,7 @@ interface ControlFeedbacksEditorProps {
 	addPlaceholder: string
 }
 
-export function ControlFeedbacksEditor({
+export const ControlFeedbacksEditor = observer(function ControlFeedbacksEditor({
 	controlId,
 	feedbacks,
 	heading,
@@ -64,15 +65,19 @@ export function ControlFeedbacksEditor({
 	const showAddModal = useCallback(() => addFeedbacksRef.current?.show(), [])
 
 	const feedbackIds = useMemo(() => feedbacks.map((fb) => fb.id), [feedbacks])
-	const { setPanelCollapsed, isPanelCollapsed, setAllCollapsed, setAllExpanded, canExpandAll, canCollapseAll } =
-		usePanelCollapseHelper(`feedbacks_${controlId}`, feedbackIds)
+	const panelCollapseHelper = usePanelCollapseHelperLite(`feedbacks_${controlId}`, feedbackIds)
 
 	return (
 		<>
 			<GenericConfirmModal ref={confirmModal} />
 
 			<MyErrorBoundary>
-				<AddFeedbacksModal ref={addFeedbacksRef} addFeedback={feedbacksService.addFeedback} booleanOnly={booleanOnly} />
+				<AddFeedbacksModal
+					ref={addFeedbacksRef}
+					addFeedback={feedbacksService.addFeedback}
+					booleanOnly={booleanOnly}
+					entityType={entityType}
+				/>
 			</MyErrorBoundary>
 
 			<h4 className="mt-3">
@@ -80,13 +85,13 @@ export function ControlFeedbacksEditor({
 				{feedbacks.length > 1 && (
 					<CButtonGroup className="right">
 						<CButtonGroup>
-							{canExpandAll && (
-								<CButton size="sm" onClick={setAllExpanded} title="Expand all feedbacks">
+							{panelCollapseHelper.canExpandAll() && (
+								<CButton size="sm" onClick={panelCollapseHelper.setAllExpanded} title="Expand all feedbacks">
 									<FontAwesomeIcon icon={faExpandArrowsAlt} />
 								</CButton>
 							)}
-							{canCollapseAll && (
-								<CButton size="sm" onClick={setAllCollapsed} title="Collapse all feedbacks">
+							{panelCollapseHelper.canCollapseAll() && (
+								<CButton size="sm" onClick={panelCollapseHelper.setAllCollapsed} title="Collapse all feedbacks">
 									<FontAwesomeIcon icon={faCompressArrowsAlt} />
 								</CButton>
 							)}
@@ -106,8 +111,7 @@ export function ControlFeedbacksEditor({
 								feedback={a}
 								dragId={`feedback_${controlId}`}
 								serviceFactory={feedbacksService}
-								setCollapsed={setPanelCollapsed}
-								isCollapsed={isPanelCollapsed(a.id)}
+								panelCollapseHelper={panelCollapseHelper}
 								booleanOnly={booleanOnly}
 								location={location}
 							/>
@@ -135,11 +139,12 @@ export function ControlFeedbacksEditor({
 			</div>
 		</>
 	)
-}
+})
 
 interface FeedbackTableRowDragItem {
 	feedbackId: string
 	index: number
+	dragState: DragState | null
 }
 interface FeedbackTableRowDragStatus {
 	isDragging: boolean
@@ -151,8 +156,7 @@ interface FeedbackTableRowProps {
 	serviceFactory: IFeedbackEditorService
 	index: number
 	dragId: string
-	isCollapsed: boolean
-	setCollapsed: (feedbackId: string, collapsed: boolean) => void
+	panelCollapseHelper: PanelCollapseHelperLite
 	booleanOnly: boolean
 	location: ControlLocation | undefined
 }
@@ -163,8 +167,7 @@ function FeedbackTableRow({
 	serviceFactory,
 	index,
 	dragId,
-	isCollapsed,
-	setCollapsed,
+	panelCollapseHelper,
 	booleanOnly,
 	location,
 }: FeedbackTableRowProps) {
@@ -173,16 +176,23 @@ function FeedbackTableRow({
 	const ref = useRef<HTMLTableRowElement>(null)
 	const [, drop] = useDrop<FeedbackTableRowDragItem>({
 		accept: dragId,
-		hover(item, _monitor) {
+		hover(item, monitor) {
 			if (!ref.current) {
 				return
 			}
+
+			// Ensure the hover targets this element, and not a child element
+			if (!monitor.isOver({ shallow: true })) return
+
 			const dragIndex = item.index
 			const hoverIndex = index
+			const hoverId = feedback.id
 			// Don't replace items with themselves
-			if (dragIndex === hoverIndex) {
+			if (item.feedbackId === hoverId || dragIndex === hoverIndex) {
 				return
 			}
+
+			if (!checkDragState(item, monitor, hoverId)) return
 
 			// Time to actually perform the action
 			serviceFactory.moveCard(dragIndex, hoverIndex)
@@ -193,21 +203,22 @@ function FeedbackTableRow({
 			// to avoid expensive index searches.
 			item.index = hoverIndex
 		},
+		drop(item, _monitor) {
+			item.dragState = null
+		},
 	})
 	const [{ isDragging }, drag, preview] = useDrag<FeedbackTableRowDragItem, unknown, FeedbackTableRowDragStatus>({
 		type: dragId,
 		item: {
 			feedbackId: feedback.id,
 			index: index,
+			dragState: null,
 		},
 		collect: (monitor) => ({
 			isDragging: monitor.isDragging(),
 		}),
 	})
 	preview(drop(ref))
-
-	const doCollapse = useCallback(() => setCollapsed(feedback.id, true), [setCollapsed, feedback.id])
-	const doExpand = useCallback(() => setCollapsed(feedback.id, false), [setCollapsed, feedback.id])
 
 	if (!feedback) {
 		// Invalid feedback, so skip
@@ -225,9 +236,7 @@ function FeedbackTableRow({
 					location={location}
 					feedback={feedback}
 					service={service}
-					isCollapsed={isCollapsed}
-					doCollapse={doCollapse}
-					doExpand={doExpand}
+					panelCollapseHelper={panelCollapseHelper}
 					booleanOnly={booleanOnly}
 				/>
 			</td>
@@ -240,9 +249,7 @@ interface FeedbackEditorProps {
 	feedback: FeedbackInstance
 	location: ControlLocation | undefined
 	service: IFeedbackEditorFeedbackService
-	isCollapsed: boolean
-	doCollapse: () => void
-	doExpand: () => void
+	panelCollapseHelper: PanelCollapseHelperLite
 	booleanOnly: boolean
 }
 
@@ -251,9 +258,7 @@ const FeedbackEditor = observer(function FeedbackEditor({
 	feedback,
 	location,
 	service,
-	isCollapsed,
-	doCollapse,
-	doExpand,
+	panelCollapseHelper,
 	booleanOnly,
 }: FeedbackEditorProps) {
 	const { feedbackDefinitions } = useContext(RootAppStoreContext)
@@ -266,7 +271,10 @@ const FeedbackEditor = observer(function FeedbackEditor({
 
 	const [feedbackOptions, optionVisibility] = useOptionsAndIsVisible(feedbackSpec?.options, feedback?.options)
 
-	const innerSetEnabled = useCallback((e) => service.setEnabled(e.target.checked), [service.setEnabled])
+	const innerSetEnabled = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => service.setEnabled(e.target.checked),
+		[service.setEnabled]
+	)
 
 	const name = feedbackSpec
 		? `${connectionLabel}: ${feedbackSpec.label}`
@@ -278,6 +286,16 @@ const FeedbackEditor = observer(function FeedbackEditor({
 	const headline = feedback.headline
 	const [headlineExpanded, setHeadlineExpanded] = useState(canSetHeadline && !!headline)
 	const doEditHeadline = useCallback(() => setHeadlineExpanded(true), [])
+
+	const doCollapse = useCallback(
+		() => panelCollapseHelper.setPanelCollapsed(feedback.id, true),
+		[panelCollapseHelper, feedback.id]
+	)
+	const doExpand = useCallback(
+		() => panelCollapseHelper.setPanelCollapsed(feedback.id, false),
+		[panelCollapseHelper, feedback.id]
+	)
+	const isCollapsed = panelCollapseHelper.isPanelCollapsed(feedback.id)
 
 	return (
 		<>
@@ -296,7 +314,7 @@ const FeedbackEditor = observer(function FeedbackEditor({
 
 				<div className="cell-controls">
 					<CButtonGroup>
-						{canSetHeadline && !headlineExpanded && (
+						{canSetHeadline && !headlineExpanded && !isCollapsed && (
 							<CButton size="sm" onClick={doEditHeadline} title="Set headline">
 								<FontAwesomeIcon icon={faPencil} />
 							</CButton>
@@ -319,7 +337,7 @@ const FeedbackEditor = observer(function FeedbackEditor({
 						{!!service.setEnabled && (
 							<>
 								&nbsp;
-								<CSwitch
+								<CFormSwitch
 									color="success"
 									checked={!feedback.disabled}
 									title={feedback.disabled ? `Enable ${entityType}` : `Disable ${entityType}`}
@@ -333,7 +351,11 @@ const FeedbackEditor = observer(function FeedbackEditor({
 
 			{!isCollapsed && (
 				<div className="editor-grid remove075right">
-					<div className="cell-description">
+					<div
+						className={classNames('cell-description', {
+							'no-options': feedbackOptions.length === 0,
+						})}
+					>
 						{headlineExpanded && <p className="name">{name}</p>}
 						{feedbackSpec?.description || ''}
 					</div>
@@ -354,7 +376,7 @@ const FeedbackEditor = observer(function FeedbackEditor({
 								<MyErrorBoundary key={i}>
 									<OptionsInputField
 										key={i}
-										isOnControl={!!location}
+										isLocatedInGrid={!!location}
 										isAction={false}
 										connectionId={feedback.instance_id}
 										option={opt}
@@ -371,20 +393,15 @@ const FeedbackEditor = observer(function FeedbackEditor({
 						<div className="cell-invert">
 							<MyErrorBoundary>
 								<CForm onSubmit={PreventDefaultHandler}>
-									<CFormGroup>
-										<CLabel>
-											Invert
-											<FontAwesomeIcon
-												style={{ marginLeft: '5px' }}
-												icon={faQuestionCircle}
-												title={'If checked, the behaviour of this feedback is inverted'}
-											/>
-										</CLabel>
-										<p>
-											<CheckboxInputField value={!!feedback.isInverted} setValue={service.setInverted} />
-											&nbsp;
-										</p>
-									</CFormGroup>
+									<CFormLabel>
+										Invert
+										<FontAwesomeIcon
+											style={{ marginLeft: '5px' }}
+											icon={faQuestionCircle}
+											title={'If checked, the behaviour of this feedback is inverted'}
+										/>
+									</CFormLabel>
+									<CheckboxInputField value={!!feedback.isInverted} setValue={service.setInverted} />
 								</CForm>
 							</MyErrorBoundary>
 						</div>
@@ -425,15 +442,13 @@ function FeedbackManageStyles({ feedbackSpec, feedback, setSelectedStyleProps }:
 			<div className="cell-styles-manage">
 				<CForm onSubmit={PreventDefaultHandler}>
 					<MyErrorBoundary>
-						<CFormGroup>
-							<label>Change style properties</label>
-							<DropdownInputField
-								multiple={true}
-								choices={ButtonStyleProperties}
-								setValue={setSelectedStyleProps as (keys: DropdownChoiceId[]) => void}
-								value={currentValue}
-							/>
-						</CFormGroup>
+						<DropdownInputField
+							label="Change style properties"
+							multiple={true}
+							choices={ButtonStyleProperties}
+							setValue={setSelectedStyleProps as (keys: DropdownChoiceId[]) => void}
+							value={currentValue}
+						/>
 					</MyErrorBoundary>
 				</CForm>
 			</div>
@@ -453,7 +468,7 @@ function FeedbackStyles({ feedbackSpec, feedback, setStylePropsValue }: Feedback
 	const [pngError, setPngError] = useState<string | null>(null)
 	const clearPngError = useCallback(() => setPngError(null), [])
 	const setPng = useCallback(
-		(data) => {
+		(data: string | null) => {
 			setPngError(null)
 			setStylePropsValue('png64', data)
 		},
@@ -465,14 +480,14 @@ function FeedbackStyles({ feedbackSpec, feedback, setStylePropsValue }: Feedback
 	}, [setStylePropsValue])
 
 	const currentStyle = useMemo(() => feedback?.style || {}, [feedback?.style])
-	const showField = useCallback((id) => id in currentStyle, [currentStyle])
+	const showField = useCallback((id: string) => id in currentStyle, [currentStyle])
 
 	if (feedbackSpec?.type === 'boolean') {
 		return (
 			<div className="cell-styles">
 				<CForm onSubmit={PreventDefaultHandler}>
 					{pngError && (
-						<CAlert color="warning" closeButton>
+						<CAlert color="warning" dismissible>
 							{pngError}
 						</CAlert>
 					)}

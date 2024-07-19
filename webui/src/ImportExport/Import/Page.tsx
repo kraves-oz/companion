@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { CButton, CCol, CRow, CSelect } from '@coreui/react'
+import { CButton, CCol, CRow, CFormSelect } from '@coreui/react'
 import { ConnectionsContext, MyErrorBoundary, SocketContext, socketEmitPromise } from '../../util.js'
 import { ButtonGridHeader } from '../../Buttons/ButtonGridHeader.js'
 import { usePagePicker } from '../../Hooks/usePagePicker.js'
@@ -17,7 +17,7 @@ import type { ClientImportObject, ClientImportObjectInstance } from '@companion-
 import { compareExportedInstances } from '@companion-app/shared/Import.js'
 import { RootAppStoreContext } from '../../Stores/RootAppStore.js'
 import { observer } from 'mobx-react-lite'
-import { ButtonGridZoomControl } from '../../Buttons/ButtonGridZoomSlider.js'
+import { ButtonGridZoomControl } from '../../Buttons/ButtonGridZoomControl.js'
 import { useGridZoom } from '../../Buttons/GridZoom.js'
 
 interface ImportPageWizardProps {
@@ -84,24 +84,17 @@ export const ImportPageWizard = observer(function ImportPageWizard({
 			<CCol xs={12} xl={6}>
 				<h5>Source Page</h5>
 				<MyErrorBoundary>
-					<div>
+					<>
 						<CCol sm={12}>
-							<CButton
-								color="light"
-								style={{
-									float: 'right',
-									marginTop: 10,
-								}}
-								onClick={resetSourcePosition}
-							>
-								<FontAwesomeIcon icon={faHome} /> Home
-							</CButton>
-
 							<ButtonGridHeader
 								pageNumber={isSinglePage ? snapshot.oldPageNumber ?? 1 : importPageNumber}
 								changePage={isSinglePage ? undefined : changeImportPage}
 								setPage={isSinglePage ? undefined : setImportPageNumber}
-							/>
+							>
+								<CButton color="light" className="btn-right" title="Home Position" onClick={resetSourcePosition}>
+									<FontAwesomeIcon icon={faHome} />
+								</CButton>
+							</ButtonGridHeader>
 						</CCol>
 						<div className="buttongrid" ref={hasBeenRenderedRef}>
 							{hasBeenRendered && sourceGridSize && (
@@ -114,38 +107,26 @@ export const ImportPageWizard = observer(function ImportPageWizard({
 								/>
 							)}
 						</div>
-					</div>
+					</>
 				</MyErrorBoundary>
 			</CCol>
 
 			<CCol xs={12} xl={6}>
 				<h5>Destination Page</h5>
 				<MyErrorBoundary>
-					<div>
+					<>
 						<CCol sm={12}>
-							<CButton
-								color="light"
-								style={{
-									float: 'right',
-									marginTop: 10,
-								}}
-								onClick={resetDestinationPosition}
-							>
-								<FontAwesomeIcon icon={faHome} /> Home
-							</CButton>
+							<ButtonGridHeader pageNumber={pageNumber} changePage={changePage} setPage={setPageNumber}>
+								<ButtonGridZoomControl
+									useCompactButtons={true}
+									gridZoomValue={gridZoomValue}
+									gridZoomController={gridZoomController}
+								/>
 
-							<ButtonGridZoomControl
-								useCompactButtons={false}
-								gridZoomValue={gridZoomValue}
-								gridZoomController={gridZoomController}
-								style={{
-									float: 'right',
-									marginTop: 10,
-									marginRight: 3,
-								}}
-							/>
-
-							<ButtonGridHeader pageNumber={pageNumber} changePage={changePage} setPage={setPageNumber} />
+								<CButton color="light" className="btn-right" title="Home Position" onClick={resetDestinationPosition}>
+									<FontAwesomeIcon icon={faHome} />
+								</CButton>
+							</ButtonGridHeader>
 						</CCol>
 						<div className="buttongrid">
 							{hasBeenRendered && destinationGridSize && (
@@ -158,7 +139,7 @@ export const ImportPageWizard = observer(function ImportPageWizard({
 								/>
 							)}
 						</div>
-					</div>
+					</>
 				</MyErrorBoundary>
 			</CCol>
 			<CCol xs={12}>
@@ -257,7 +238,7 @@ const ImportRemapRow = observer(function ImportRemapRow({
 		<tr>
 			<td>
 				{snapshotModule ? (
-					<CSelect value={instanceRemap[id] ?? ''} onChange={onChange}>
+					<CFormSelect value={instanceRemap[id] ?? ''} onChange={onChange}>
 						<option value="_new">[ Create new connection ]</option>
 						<option value="_ignore">[ Ignore ]</option>
 						{currentInstances.map(([id, inst]) => (
@@ -265,7 +246,7 @@ const ImportRemapRow = observer(function ImportRemapRow({
 								{inst.label}
 							</option>
 						))}
-					</CSelect>
+					</CFormSelect>
 				) : (
 					'Ignored'
 				)}

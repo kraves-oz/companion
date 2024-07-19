@@ -1,15 +1,5 @@
 import React, { FormEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import {
-	CAlert,
-	CButton,
-	CButtonGroup,
-	CForm,
-	CFormGroup,
-	CInput,
-	CInputGroup,
-	CInputGroupAppend,
-	CLabel,
-} from '@coreui/react'
+import { CAlert, CButton, CButtonGroup, CForm, CFormInput, CInputGroup, CInputGroupText } from '@coreui/react'
 import { socketEmitPromise, PreventDefaultHandler, useComputed } from '../util.js'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -26,7 +16,7 @@ import { CheckboxInputField } from '../Components/CheckboxInputField.js'
 import { GenericConfirmModal, GenericConfirmModalRef } from '../Components/GenericConfirmModal.js'
 import { isCustomVariableValid } from '@companion-app/shared/CustomVariable.js'
 import { useDrag, useDrop } from 'react-dnd'
-import { usePanelCollapseHelper } from '../Helpers/CollapseHelper.js'
+import { PanelCollapseHelperLite, usePanelCollapseHelperLite } from '../Helpers/CollapseHelper.js'
 import type { CompanionVariableValues } from '@companion-module/base'
 import { CustomVariableDefinition } from '@companion-app/shared/Model/CustomVariableModel.js'
 import { RootAppStoreContext } from '../Stores/RootAppStore.js'
@@ -164,12 +154,11 @@ export const CustomVariablesList = observer(function CustomVariablesList({ setSh
 	)
 
 	const allVariableNames = useComputed(() => Array.from(customVariables.customVariables.keys()), [customVariables])
-	const { setPanelCollapsed, isPanelCollapsed, setAllCollapsed, setAllExpanded, canExpandAll, canCollapseAll } =
-		usePanelCollapseHelper(`custom_variables`, allVariableNames)
+	const panelCollapseHelper = usePanelCollapseHelperLite(`custom_variables`, allVariableNames)
 
 	const [filter, setFilter] = useState('')
 	const clearFilter = useCallback(() => setFilter(''), [])
-	const updateFilter = useCallback((e) => setFilter(e.currentTarget.value), [])
+	const updateFilter = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.currentTarget.value), [])
 
 	const variableDefinitions = useComputed(() => {
 		const defs: CustomVariableDefinitionExt[] = []
@@ -209,13 +198,13 @@ export const CustomVariablesList = observer(function CustomVariablesList({ setSh
 			<h5>
 				Custom Variables
 				<CButtonGroup>
-					{!hasNoVariables && canExpandAll && (
-						<CButton color="white" size="sm" onClick={setAllExpanded} title="Expand all">
+					{!hasNoVariables && panelCollapseHelper.canExpandAll() && (
+						<CButton color="white" size="sm" onClick={panelCollapseHelper.setAllExpanded} title="Expand all">
 							<FontAwesomeIcon icon={faExpandArrowsAlt} />
 						</CButton>
 					)}
-					{!hasNoVariables && canCollapseAll && (
-						<CButton color="white" size="sm" onClick={setAllCollapsed} title="Collapse all">
+					{!hasNoVariables && panelCollapseHelper.canCollapseAll() && (
+						<CButton color="white" size="sm" onClick={panelCollapseHelper.setAllCollapsed} title="Collapse all">
 							<FontAwesomeIcon icon={faCompressArrowsAlt} />
 						</CButton>
 					)}
@@ -228,18 +217,16 @@ export const CustomVariablesList = observer(function CustomVariablesList({ setSh
 			<GenericConfirmModal ref={confirmRef} />
 
 			<CInputGroup className="variables-table-filter">
-				<CInput
+				<CFormInput
 					type="text"
 					placeholder="Filter ..."
 					onChange={updateFilter}
 					value={filter}
 					style={{ fontSize: '1.2em' }}
 				/>
-				<CInputGroupAppend>
-					<CButton color="danger" onClick={clearFilter}>
-						<FontAwesomeIcon icon={faTimes} />
-					</CButton>
-				</CInputGroupAppend>
+				<CButton color="danger" onClick={clearFilter}>
+					<FontAwesomeIcon icon={faTimes} />
+				</CButton>
 			</CInputGroup>
 
 			<table className="table variables-table">
@@ -274,8 +261,7 @@ export const CustomVariablesList = observer(function CustomVariablesList({ setSh
 									setCurrentValue={setCurrentValue}
 									setPersistenceValue={setPersistenceValue}
 									moveRow={moveRow}
-									setCollapsed={setPanelCollapsed}
-									isCollapsed={isPanelCollapsed(info.name)}
+									panelCollapseHelper={panelCollapseHelper}
 								/>
 							)
 						})}
@@ -289,14 +275,14 @@ export const CustomVariablesList = observer(function CustomVariablesList({ setSh
 
 			<hr />
 			<div>
-				<CForm inline onSubmit={doCreateNew}>
-					<CFormGroup>
-						<CLabel htmlFor="new_name">Create custom variable:&nbsp;</CLabel>
-						<CInput name="new_name" type="text" value={newName} onChange={(e) => setNewName(e.currentTarget.value)} />
+				<CForm onSubmit={doCreateNew}>
+					<CInputGroup>
+						<CInputGroupText>Create custom variable:</CInputGroupText>
+						<CFormInput type="text" value={newName} onChange={(e) => setNewName(e.currentTarget.value)} />
 						<CButton color="primary" onClick={doCreateNew} disabled={!isCustomVariableValid(newName)}>
 							Add
 						</CButton>
-					</CFormGroup>
+					</CInputGroup>
 				</CForm>
 			</div>
 
@@ -325,8 +311,7 @@ interface CustomVariableRowProps {
 	setCurrentValue: (name: string, value: any) => void
 	setPersistenceValue: (name: string, persisted: boolean) => void
 	moveRow: (itemName: string, targetName: string) => void
-	isCollapsed: boolean
-	setCollapsed: (name: string, collapsed: boolean) => void
+	panelCollapseHelper: PanelCollapseHelperLite
 }
 
 function CustomVariableRow({
@@ -341,13 +326,13 @@ function CustomVariableRow({
 	setCurrentValue,
 	setPersistenceValue,
 	moveRow,
-	isCollapsed,
-	setCollapsed,
+	panelCollapseHelper,
 }: CustomVariableRowProps) {
 	const fullname = `internal:${shortname}`
 
-	const doCollapse = useCallback(() => setCollapsed(name, true), [setCollapsed, name])
-	const doExpand = useCallback(() => setCollapsed(name, false), [setCollapsed, name])
+	const doCollapse = useCallback(() => panelCollapseHelper.setPanelCollapsed(name, true), [panelCollapseHelper, name])
+	const doExpand = useCallback(() => panelCollapseHelper.setPanelCollapsed(name, false), [panelCollapseHelper, name])
+	const isCollapsed = panelCollapseHelper.isPanelCollapsed(name)
 
 	const ref = useRef(null)
 	const [, drop] = useDrop<CustomVariableDragItem>({
@@ -411,7 +396,7 @@ function CustomVariableRow({
 									<FontAwesomeIcon icon={faCopy} />
 								</CButton>
 							</CopyToClipboard>
-							<CButton color="danger" size="sm" onClick={() => doDelete(name)}>
+							<CButton size="sm" onClick={() => doDelete(name)}>
 								<FontAwesomeIcon icon={faTrash} />
 							</CButton>
 						</CButtonGroup>
@@ -421,31 +406,28 @@ function CustomVariableRow({
 						<>
 							<div className="cell-options">
 								<CForm onSubmit={PreventDefaultHandler}>
-									<CFormGroup>
-										<CLabel htmlFor="persist_value">Persist value: </CLabel>
-										<CheckboxInputField
-											value={info.persistCurrentValue}
-											setValue={(val) => setPersistenceValue(name, val)}
-										/>
-									</CFormGroup>
+									<CheckboxInputField
+										label="Persist value: "
+										value={info.persistCurrentValue}
+										setValue={(val) => setPersistenceValue(name, val)}
+									/>
 								</CForm>
 							</div>
 
 							<div className="cell-values">
 								<CForm onSubmit={PreventDefaultHandler}>
-									<CFormGroup>
-										<CLabel htmlFor="current_value">Current value: </CLabel>
-										<TextInputField value={value || ''} setValue={(val) => setCurrentValue(name, val)} />
-									</CFormGroup>
+									<TextInputField
+										label="Current value: "
+										value={value || ''}
+										setValue={(val) => setCurrentValue(name, val)}
+									/>
 
-									<CFormGroup>
-										<CLabel htmlFor="startup_value">Startup value: </CLabel>
-										<TextInputField
-											disabled={!!info.persistCurrentValue}
-											value={info.defaultValue + ''}
-											setValue={(val) => setStartupValue(name, val)}
-										/>
-									</CFormGroup>
+									<TextInputField
+										label="Startup value: "
+										disabled={!!info.persistCurrentValue}
+										value={info.defaultValue + ''}
+										setValue={(val) => setStartupValue(name, val)}
+									/>
 								</CForm>
 							</div>
 						</>

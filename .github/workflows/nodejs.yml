@@ -4,6 +4,8 @@ on: [push]
 jobs:
   check-types:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,9 +36,10 @@ jobs:
           cd webui
           yarn check-types
 
-  linux64:
+  linux-x64:
     runs-on: ubuntu-20.04
     needs: check-types
+    timeout-minutes: 20
 
     outputs:
       version: ${{ steps.filenames.outputs.longversion }}
@@ -66,7 +69,7 @@ jobs:
           yarn --immutable
           yarn update
 
-          yarn zx tools/build/complete.mjs
+          yarn zx tools/build/complete.mjs linux-x64
 
           # manually tar it, to preserve the symlinks
           cd electron-output
@@ -110,6 +113,7 @@ jobs:
   linux-arm64:
     runs-on: ubuntu-20.04
     needs: check-types
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -176,9 +180,10 @@ jobs:
           api-target: 'linux-arm64-tgz'
           api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
 
-  osx:
+  osx-x64:
     runs-on: macos-12
     needs: check-types
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -205,7 +210,7 @@ jobs:
           yarn --immutable
           yarn update
 
-          yarn zx tools/build/complete.mjs
+          yarn zx tools/build/complete.mjs darwin-x64
         env:
           CI: 1
           CSC_LINK: ${{ secrets.OSX_CSC_LINK }}
@@ -247,6 +252,7 @@ jobs:
   osx-arm64:
     runs-on: macos-12
     needs: check-types
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -316,9 +322,10 @@ jobs:
           api-target: 'mac-arm'
           api-secret: ${{ secrets.BITFOCUS_API_PROJECT_SECRET }}
 
-  win64:
+  win32-x64:
     runs-on: windows-2019
     needs: check-types
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -346,7 +353,7 @@ jobs:
           yarn --immutable
           yarn update
 
-          yarn zx tools/build/complete.mjs
+          yarn zx tools/build/complete.mjs win32-x64
         env:
           CI: 1
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -383,9 +390,10 @@ jobs:
 
   docker-image:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     needs:
-      - linux64
+      - linux-x64
       - linux-arm64
 
     env:
@@ -393,14 +401,14 @@ jobs:
 
     steps:
       - name: Docker meta
-        if: ${{ needs.linux64.outputs.do-docker }}
+        if: ${{ needs.linux-x64.outputs.do-docker }}
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ github.repository }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ needs.linux64.outputs.version }}
+            type=raw,value=${{ needs.linux-x64.outputs.version }}
             type=ref,event=tag
             type=ref,event=branch
 
@@ -426,6 +434,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         if: ${{ steps.meta.outputs.tags }}
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: .
           file: Dockerfile.prebuild
@@ -434,4 +444,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           tags: '${{ steps.meta.outputs.tags }}'
           build-args: |
-            build_name=${{ needs.linux64.outputs.version }}
+            build_name=${{ needs.linux-x64.outputs.version }}
